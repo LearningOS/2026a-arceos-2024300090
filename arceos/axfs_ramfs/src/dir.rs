@@ -165,6 +165,25 @@ impl VfsNodeOps for DirNode {
         }
     }
 
+    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+        let src_name = basename(src_path);
+        let dst_name = basename(dst_path);
+
+        if src_name.is_empty() || dst_name.is_empty() || src_name == "." || src_name == ".." {
+            return Err(VfsError::InvalidInput);
+        }
+
+        let mut children = self.children.write();
+        let node = children.remove(src_name).ok_or(VfsError::NotFound)?;
+
+        // 目标名已存在则先移除，保证覆盖语义
+        if children.contains_key(dst_name) {
+            children.remove(dst_name);
+        }
+        children.insert(dst_name.into(), node);
+        Ok(())
+    }
+
     axfs_vfs::impl_vfs_dir_default! {}
 }
 
@@ -173,4 +192,8 @@ fn split_path(path: &str) -> (&str, Option<&str>) {
     trimmed_path.find('/').map_or((trimmed_path, None), |n| {
         (&trimmed_path[..n], Some(&trimmed_path[n + 1..]))
     })
+}
+
+fn basename(path: &str) -> &str {
+    path.trim_matches('/').rsplit('/').next().unwrap_or("")
 }
