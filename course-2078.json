@@ -2,8 +2,8 @@
   "schema": 1,
   "courseId": 2078,
   "repository": "LearningOS/2026a-arceos-2024300090",
-  "commit": "a652951adeb97d219c3d27cdb6278107f04fd3a7",
-  "score": 200,
+  "commit": "d9f5750e25112b2d0f661bad850deaf8d1dc3c64",
+  "score": 300,
   "totalScore": 600,
   "exercises": [
     {
@@ -23,8 +23,8 @@
     {
       "name": "alt_alloc",
       "max": 100,
-      "score": 0,
-      "status": "fail",
+      "score": 100,
+      "status": "pass",
       "exitCode": 0
     },
     {
@@ -45,14 +45,14 @@
       "name": "simple_hv",
       "max": 100,
       "score": 0,
-      "status": "timeout",
-      "exitCode": 124
+      "status": "fail",
+      "exitCode": 0
     }
   ],
   "student": "2024300090",
-  "runId": "45036840642",
+  "runId": "45038817268",
   "runAttempt": "1",
   "upload": {
-    "status": "accepted"
+    "status": "pending"
   }
 }
