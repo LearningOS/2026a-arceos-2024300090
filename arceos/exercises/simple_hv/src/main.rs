@@ -80,6 +80,15 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
     use scause::{Exception, Trap};
 
     let scause = scause::read();
+    ax_println!(
+        "DIAG trap: {:?}, sepc={:#x}, stval={:#x}, htval={:#x}, a0={:#x}, a1={:#x}",
+        scause.cause(),
+        ctx.guest_regs.sepc,
+        stval::read(),
+        htval::read(),
+        ctx.guest_regs.gprs.reg(A0),
+        ctx.guest_regs.gprs.reg(A1)
+    );
     match scause.cause() {
         Trap::Exception(Exception::VirtualSupervisorEnvCall) => {
             let sbi_msg = SbiMessage::from_regs(ctx.guest_regs.gprs.a_regs()).ok();
