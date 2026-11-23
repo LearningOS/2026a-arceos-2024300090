@@ -55,7 +55,54 @@ extern crate alloc;
 
 #[cfg(feature = "alloc")]
 #[doc(no_inline)]
-pub use alloc::{boxed, collections, format, string, vec};
+pub use alloc::{boxed, format, string, vec};
+
+#[cfg(feature = "alloc")]
+pub mod collections {
+    pub use alloc::collections::*;
+
+    use core::hash::BuildHasherDefault;
+    use hashbrown::HashMap as RawHashMap;
+    use rustc_hash::FxHasher;
+
+    type Inner<K, V> = RawHashMap<K, V, BuildHasherDefault<FxHasher>>;
+
+    /// 基于 hashbrown 的哈希表，接口对齐 `std::collections::HashMap`。
+    pub struct HashMap<K, V> {
+        inner: Inner<K, V>,
+    }
+
+    impl<K, V> Default for HashMap<K, V> {
+        fn default() -> Self {
+            Self { inner: Inner::default() }
+        }
+    }
+
+    impl<K, V> HashMap<K, V> {
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn insert(&mut self, key: K, value: V) -> Option<V>
+        where
+            K: Eq + core::hash::Hash,
+        {
+            self.inner.insert(key, value)
+        }
+
+        pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+            self.inner.iter()
+        }
+
+        pub fn len(&self) -> usize {
+            self.inner.len()
+        }
+
+        pub fn is_empty(&self) -> bool {
+            self.inner.is_empty()
+        }
+    }
+}
 
 #[doc(no_inline)]
 pub use core::{arch, cell, cmp, hint, marker, mem, ops, ptr, slice, str};

@@ -498,7 +498,9 @@ dependencies = [
  "axerrno 0.1.2",
  "axfeat",
  "axio",
+ "hashbrown",
  "kspin",
+ "rustc-hash",
 ]
 
 [[package]]
