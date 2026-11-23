@@ -17,7 +17,7 @@ mod sbi;
 mod loader;
 
 use vcpu::VmCpuRegisters;
-use riscv::register::{scause, sstatus, stval};
+use riscv::register::{scause, sstatus, stval, htval};
 use csrs::defs::hstatus;
 use tock_registers::LocalRegisterCopy;
 use csrs::{RiscvCsrTrait, CSR};
@@ -102,16 +102,20 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
             }
         },
         Trap::Exception(Exception::IllegalInstruction) => {
-            panic!("Bad instruction: {:#x} sepc: {:#x}",
-                stval::read(),
-                ctx.guest_regs.sepc
-            );
+            // 客体第一条指令 `csrr a1, mhartid`：guest 运行在 VS 模式，不能直接访问
+            // M 级 CSR，于是陷入非法指令。由 hypervisor 模拟这次 CSR 读取：
+            // 把虚拟 hartid 0x1234 写入 guest a1，再把 sepc（guest PC）推进 4 字节跳过本条。
+            ctx.guest_regs.gprs.set_reg(A1, 0x1234);
+            ctx.guest_regs.sepc += 4;
         },
         Trap::Exception(Exception::LoadGuestPageFault) => {
-            panic!("LoadGuestPageFault: stval{:#x} sepc: {:#x}",
-                stval::read(),
-                ctx.guest_regs.sepc
-            );
+            // 客体第二条指令 `ld a0, 64(zero)` 访问 guest PA 0x40：该低地址没有建立
+            // 二级页表映射，陷入访客页故障。故障地址 = htval 高位 << 2 | stval 低 2 位。
+            // 模拟这次 8 字节读：把 0x6688 写入 guest a0，PC 推进 4 字节跳过本条。
+            let fault_addr = (htval::read() << 2) | (stval::read() & 0x3);
+            assert_eq!(fault_addr, 0x40);
+            ctx.guest_regs.gprs.set_reg(A0, 0x6688);
+            ctx.guest_regs.sepc += 4;
         },
         _ => {
             panic!(
