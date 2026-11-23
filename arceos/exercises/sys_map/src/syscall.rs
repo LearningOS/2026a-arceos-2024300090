@@ -8,6 +8,10 @@ use axtask::current;
 use axtask::TaskExtRef;
 use axhal::paging::MappingFlags;
 use arceos_posix_api as api;
+use alloc::vec;
+use alloc::vec::Vec;
+use axhal::mem::{VirtAddr, MemoryAddr, PAGE_SIZE_4K};
+use memory_addr::VirtAddrRange;
 
 const SYS_IOCTL: usize = 29;
 const SYS_OPENAT: usize = 56;
@@ -138,9 +142,71 @@ fn sys_mmap(
     prot: i32,
     flags: i32,
     fd: i32,
-    _offset: isize,
+    offset: isize,
 ) -> isize {
-    unimplemented!("no sys_mmap!");
+    if length == 0 {
+        return -LinuxError::EINVAL.code() as isize;
+    }
+
+    let prot = MmapProt::from_bits_truncate(prot);
+    let flags = MmapFlags::from_bits_truncate(flags);
+    let mflags: MappingFlags = prot.into();
+
+    // 映射长度按 4KB 向上对齐
+    let len = (length + PAGE_SIZE_4K - 1) & !(PAGE_SIZE_4K - 1);
+
+    let curr = current();
+    let aspace = curr.task_ext().aspace.clone();
+
+    // 第一步：在当前任务地址空间选空闲区并建立映射
+    let vaddr = {
+        let mut uspace = aspace.lock();
+
+        let hint = if addr.is_null() {
+            VirtAddr::from(0usize)
+        } else {
+            VirtAddr::from(addr as usize).align_down_4k()
+        };
+        let limit = VirtAddrRange::from_start_size(uspace.base(), uspace.size());
+
+        let vaddr = if flags.contains(MmapFlags::MAP_FIXED) && !addr.is_null() {
+            hint
+        } else {
+            match uspace.find_free_area(hint, len, limit) {
+                Some(va) => va,
+                None => return -LinuxError::ENOMEM.code() as isize,
+            }
+        };
+
+        if uspace.map_alloc(vaddr, len, mflags, true).is_err() {
+            return -LinuxError::ENOMEM.code() as isize;
+        }
+        vaddr
+    };
+
+    // 第二步：文件映射先把内容读到内核缓冲；匿名映射保持零页
+    let mut buf: Option<Vec<u8>> = None;
+    if !flags.contains(MmapFlags::MAP_ANONYMOUS) && fd >= 0 {
+        if api::sys_lseek(fd, offset as _, 0) < 0 {
+            return -LinuxError::EBADF.code() as isize;
+        }
+        let mut tmp = vec![0u8; len];
+        let n = api::sys_read(fd, tmp.as_mut_ptr() as *mut c_void, len);
+        if n < 0 {
+            return n;
+        }
+        buf = Some(tmp);
+    }
+
+    // 第三步：把文件内容写入新映射的用户页
+    if let Some(data) = buf {
+        let mut uspace = aspace.lock();
+        if uspace.write(vaddr, &data).is_err() {
+            return -LinuxError::EFAULT.code() as isize;
+        }
+    }
+
+    vaddr.as_usize() as isize
 }
 
 fn sys_openat(dfd: c_int, fname: *const c_char, flags: c_int, mode: api::ctypes::mode_t) -> isize {
