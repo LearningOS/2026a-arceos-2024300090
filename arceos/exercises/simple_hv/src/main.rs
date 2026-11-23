@@ -93,6 +93,7 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
                         assert_eq!(a0, 0x6688);
                         assert_eq!(a1, 0x1234);
                         ax_println!("Shutdown vm normally!");
+                        sbi_rt::system_reset(sbi_rt::Shutdown, sbi_rt::NoReason);
                         return true;
                     },
                     _ => todo!(),
