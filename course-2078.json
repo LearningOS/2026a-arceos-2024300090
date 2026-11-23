@@ -2,7 +2,7 @@
   "schema": 1,
   "courseId": 2078,
   "repository": "LearningOS/2026a-arceos-2024300090",
-  "commit": "7f696f31cfb66c689c703fc446cdb3bf5589b080",
+  "commit": "ba0633b536526f12c3f33bbaf3aac0d065997fca",
   "score": 500,
   "totalScore": 600,
   "exercises": [
@@ -50,9 +50,9 @@
     }
   ],
   "student": "2024300090",
-  "runId": "45108604192",
+  "runId": "45110291876",
   "runAttempt": "1",
   "upload": {
-    "status": "accepted"
+    "status": "pending"
   }
 }
